@@ -1,0 +1,29 @@
+{
+  "65ce930724544c3117f33baec3d5cd6e725d71e720517b2cb12e3e55993fb354": {
+    "key": "65ce930724544c3117f33baec3d5cd6e725d71e720517b2cb12e3e55993fb354",
+    "name": "My App",
+    "allowed_domains": [
+      "*"
+    ],
+    "created_at": 1780931032659,
+    "active": true
+  },
+  "774d4c12269c98d2f73f452a9911bd046890d962de10d2262e94707aba0d8b9b": {
+    "key": "774d4c12269c98d2f73f452a9911bd046890d962de10d2262e94707aba0d8b9b",
+    "name": "My App",
+    "allowed_domains": [
+      "*"
+    ],
+    "created_at": 1780929857150,
+    "active": true
+  },
+  "98329d649a6e325f3847c10bf64d89f16f873d4c7bd1fdb1af8d1353f8ddb77c": {
+    "key": "98329d649a6e325f3847c10bf64d89f16f873d4c7bd1fdb1af8d1353f8ddb77c",
+    "name": "My App",
+    "allowed_domains": [
+      "*"
+    ],
+    "created_at": 1780929022600,
+    "active": true
+  }
+}

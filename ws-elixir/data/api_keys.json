@@ -1,0 +1,11 @@
+{
+  "7744641e8afd2ab49dbcc0dd2b8403c85abe2072c569a1a717371ba94532650f": {
+    "active": false,
+    "allowed_domains": [
+      "*"
+    ],
+    "created_at": 1780930843726,
+    "key": "7744641e8afd2ab49dbcc0dd2b8403c85abe2072c569a1a717371ba94532650f",
+    "name": "My App"
+  }
+}

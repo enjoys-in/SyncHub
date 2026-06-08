@@ -1,0 +1,14 @@
+services:
+  ws-elixir:
+    build:
+      context: ./ws-elixir
+      dockerfile: Dockerfile
+      network: host
+    ports:
+      - "4000:4000"
+    environment:
+      - MIX_ENV=dev
+      - PORT=4000
+    volumes:
+      - ./ws-elixir/data:/app/data
+    restart: unless-stopped
