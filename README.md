@@ -94,25 +94,39 @@ Open http://localhost:8080 in your browser — the Go server serves the test con
 ### 1. Provisioning API Keys
 Your backend calls this to generate access keys for your frontend.
 
-**`POST /api/keys`**
+**`POST /api/keys`** — Create a new key
+```bash
+curl -X POST http://localhost:8080/api/keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Production App", "domains": ["*.my-app.com", "localhost"]}'
+```
 ```json
-// Request
 {
+  "key": "65ce930724544c3117f33baec3d5cd6e...",
   "name": "Production App",
-  "domains": ["*.my-app.com", "localhost"]
-}
-
-// Response
-{
-  "id": "65ce93...",
-  "name": "Production App",
-  "domains": ["*.my-app.com", "localhost"],
-  "active": true
+  "allowed_domains": ["*.my-app.com", "localhost"],
+  "active": true,
+  "created_at": 1718000000000
 }
 ```
 
-**`DELETE /api/keys/revoke?key=ID`**
-Revokes the key and immediately forcefully drops all connected clients using it.
+**`GET /api/keys`** — List all keys (keys are partially masked)
+```bash
+curl http://localhost:8080/api/keys
+```
+
+**`PUT /api/keys/update?key=KEY`** — Update a key's name, domains, or active status
+```bash
+curl -X PUT "http://localhost:8080/api/keys/update?key=65ce9307..." \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Renamed App", "domains": ["*.new-domain.com"], "active": true}'
+```
+
+**`DELETE /api/keys/revoke?key=KEY`** — Revoke and drop all connected clients
+```bash
+curl -X DELETE "http://localhost:8080/api/keys/revoke?key=65ce9307..."
+# Immediately disconnects all WS and SSE clients using this key
+```
 
 ### 2. JWT Token (Optional)
 
@@ -164,6 +178,13 @@ sse.addEventListener('message', (event) => {
 });
 ```
 
+**SSE with Message Replay** — reconnect and get missed messages:
+```javascript
+// After disconnect, reconnect with Last-Event-ID to replay missed messages
+const sse = new EventSource('http://localhost:8080/subscribe?api_key=xxx&channel=my-room&last_event_id=42');
+// Server replays all messages after event ID 42, then streams live
+```
+
 ### 4. Backend Publishing
 Your primary backend APIs should push data to the broker using this HTTP endpoint, which instantly delivers the payload to all WebSocket and SSE subscribers.
 
@@ -198,6 +219,30 @@ curl -X POST http://localhost:8080/publish \
 ### 6. Monitoring
 
 **`GET /health`** — Returns `200 OK` with connection stats.
+
+**`GET /stats`** — Detailed server statistics.
+```bash
+curl http://localhost:8080/stats
+```
+```json
+{
+  "connections": 12,
+  "rooms": 3,
+  "online_users": ["alice", "bob", "charlie"]
+}
+```
+
+**`GET /channels/{name}/presence`** — List members of a room.
+```bash
+curl http://localhost:8080/channels/chat/presence
+```
+```json
+{
+  "channel": "chat",
+  "members": ["alice", "bob"],
+  "count": 2
+}
+```
 
 **`GET /metrics`** — Prometheus-compatible metrics (connections, messages, errors).
 
@@ -470,6 +515,12 @@ curl -X POST http://localhost:8080/acl \
     "allowed_keys": ["key1-value-here"],
     "max_members": 100
   }'
+
+# List all ACL rules
+curl http://localhost:8080/acl
+
+# Delete an ACL rule (makes channel public again)
+curl -X DELETE "http://localhost:8080/acl?channel=tenant-a-private"
 ```
 
 Now only clients using `key1` can join `tenant-a-private`.
@@ -592,3 +643,67 @@ Visit `http://localhost:8080` for a built-in test interface that lets you:
 - Publish via HTTP POST with custom publisher name
 - View real-time message log
 - Get browser notifications when tab is in background
+
+---
+
+## 🐳 Docker Deployment
+
+### Run with Docker Compose (both servers)
+```bash
+docker compose up -d
+# Go server → http://localhost:8080
+# Elixir server → http://localhost:4000
+```
+
+### Run only the Go server
+```bash
+docker compose up ws-go -d
+```
+
+### Build manually
+```bash
+cd ws-go
+docker build -t synchub .
+docker run -p 8080:8080 -v ./data:/app/data synchub
+```
+
+### With JWT and Valkey enabled
+```bash
+docker run -p 8080:8080 \
+  -e JWT_SECRET=my-secret-key \
+  -e VALKEY_URL=redis://valkey:6379 \
+  -v ./data:/app/data \
+  synchub
+```
+
+### Security hardening (built-in)
+- Runs as non-root user (`synchub`, UID 1000)
+- Read-only root filesystem
+- No new privileges (`no-new-privileges:true`)
+- Stripped binary, minimal Alpine base
+- Built-in health check on `/health`
+
+---
+
+## 📋 Complete API Endpoint Summary
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/keys` | Create API key |
+| `GET` | `/api/keys` | List all keys (masked) |
+| `PUT` | `/api/keys/update?key=X` | Update key properties |
+| `DELETE` | `/api/keys/revoke?key=X` | Revoke key + drop clients |
+| `GET` | `/ws` | WebSocket upgrade |
+| `GET` | `/subscribe` | SSE stream |
+| `POST` | `/publish` | Publish to channel |
+| `POST` | `/auth/token` | Generate JWT token |
+| `POST` | `/acl` | Set channel ACL |
+| `GET` | `/acl` | List all ACLs |
+| `DELETE` | `/acl?channel=X` | Remove channel ACL |
+| `POST` | `/webhooks` | Register webhook |
+| `GET` | `/webhooks` | List webhooks |
+| `DELETE` | `/webhooks?id=X` | Remove webhook |
+| `GET` | `/channels/{name}/presence` | Room members |
+| `GET` | `/health` | Health check |
+| `GET` | `/stats` | Server statistics |
+| `GET` | `/metrics` | Prometheus metrics |
