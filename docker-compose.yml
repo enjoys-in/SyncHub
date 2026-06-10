@@ -12,3 +12,20 @@ services:
     volumes:
       - ./ws-elixir/data:/app/data
     restart: unless-stopped
+
+  ws-go:
+    build:
+      context: ./ws-go
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    volumes:
+      - ./ws-go/data:/app/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
