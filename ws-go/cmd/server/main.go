@@ -52,6 +52,7 @@ func main() {
 	// Initialize Valkey bridge
 	valkeyBridge := valkey.NewBridge(h)
 	h.SetValkey(valkeyBridge)
+	h.SetSSE(sseBroker)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

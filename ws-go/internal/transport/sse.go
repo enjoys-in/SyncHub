@@ -143,6 +143,28 @@ func (b *SSEBroker) Publish(channel string, msg hub.Message) int {
 	return delivered
 }
 
+// PublishAll sends a message to ALL SSE subscribers across all channels.
+func (b *SSEBroker) PublishAll(msg hub.Message) int {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return 0
+	}
+
+	b.mu.RLock()
+	delivered := 0
+	for _, subs := range b.clients {
+		for client := range subs {
+			select {
+			case client.Events <- data:
+				delivered++
+			default:
+			}
+		}
+	}
+	b.mu.RUnlock()
+	return delivered
+}
+
 // GetCurrentEventID returns the current event ID counter.
 func (b *SSEBroker) GetCurrentEventID() uint64 {
 	return b.eventID.Load()

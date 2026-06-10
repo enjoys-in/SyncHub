@@ -14,6 +14,12 @@ type ValkeyPublisher interface {
 	PublishDirect(userID string, msg Message)
 }
 
+// SSEPublisher is an interface for pushing messages to SSE subscribers.
+type SSEPublisher interface {
+	Publish(channel string, msg Message) int
+	PublishAll(msg Message) int
+}
+
 // Hub maintains the set of active clients and broadcasts messages.
 type Hub struct {
 	Clients    map[string]*Client
@@ -23,6 +29,7 @@ type Hub struct {
 	Broadcast  chan []byte
 	Mu         sync.RWMutex
 	valkey     ValkeyPublisher
+	sse        SSEPublisher
 }
 
 // New creates a new Hub instance.
@@ -39,6 +46,11 @@ func New() *Hub {
 // SetValkey attaches a Valkey pub/sub bridge for cross-node messaging.
 func (h *Hub) SetValkey(v ValkeyPublisher) {
 	h.valkey = v
+}
+
+// SetSSE attaches the SSE broker so WS messages also reach SSE subscribers.
+func (h *Hub) SetSSE(s SSEPublisher) {
+	h.sse = s
 }
 
 // Run starts the Hub's main event loop.
@@ -105,12 +117,12 @@ func (h *Hub) Run() {
 			})
 
 		case message := <-h.Broadcast:
+			// Legacy channel for raw byte broadcasts (kept for compatibility)
 			h.Mu.RLock()
 			for _, client := range h.Clients {
 				select {
 				case client.Send <- message:
 				default:
-					log.Printf("[hub] slow client, dropping message for user: %s", client.UserID)
 				}
 			}
 			h.Mu.RUnlock()
@@ -189,6 +201,11 @@ func (h *Hub) BroadcastToRoom(room string, msg Message, excludeUserID string) {
 	}
 	h.Mu.RUnlock()
 
+	// Also deliver to SSE subscribers
+	if h.sse != nil {
+		h.sse.Publish(room, msg)
+	}
+
 	if h.valkey != nil {
 		h.valkey.PublishRoom(room, msg)
 	}
@@ -202,7 +219,21 @@ func (h *Hub) BroadcastMessage(msg Message) {
 		return
 	}
 
-	h.Broadcast <- data
+	// Send directly to all clients (avoid channel to prevent deadlocks)
+	h.Mu.RLock()
+	for _, client := range h.Clients {
+		select {
+		case client.Send <- data:
+		default:
+			log.Printf("[hub] slow client, dropping broadcast for user: %s", client.UserID)
+		}
+	}
+	h.Mu.RUnlock()
+
+	// Also deliver to all SSE subscribers
+	if h.sse != nil {
+		h.sse.PublishAll(msg)
+	}
 
 	if h.valkey != nil {
 		h.valkey.PublishBroadcast(msg)

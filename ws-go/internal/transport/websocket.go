@@ -82,11 +82,12 @@ func ServeWS(h *hub.Hub, apiKeys *security.APIKeyStore, aclManager *security.ACL
 		return
 	}
 
+	log.Printf("[ws] upgraded connection for client_id=%s channel=%s", clientID, channel)
+
 	client := hub.NewClient(h, conn, clientID, apiKey)
 	client.JWTClaims = jwtClaims
 	client.ACLManager = aclManager
 	client.Metrics = m
-	h.Register <- client
 
 	m.WsConnections.Add(1)
 
@@ -98,4 +99,6 @@ func ServeWS(h *hub.Hub, apiKeys *security.APIKeyStore, aclManager *security.ACL
 
 	go client.WritePump()
 	go client.ReadPump()
+
+	h.Register <- client
 }

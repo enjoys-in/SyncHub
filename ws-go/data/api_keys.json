@@ -25,5 +25,14 @@
     ],
     "created_at": 1780929022600,
     "active": true
+  },
+  "cdf1b8fe30b3d13c3e9a3af17530c19bf4bbf0419c6ebee82eed11e5093bf330": {
+    "key": "cdf1b8fe30b3d13c3e9a3af17530c19bf4bbf0419c6ebee82eed11e5093bf330",
+    "name": "My App",
+    "allowed_domains": [
+      "*"
+    ],
+    "created_at": 1781076765698,
+    "active": true
   }
 }
