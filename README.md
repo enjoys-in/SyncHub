@@ -85,7 +85,7 @@ go run ./cmd/server
 ```
 
 ### Test Console
-Open `client/index.html` in your browser. This UI allows you to instantly test both the Go and Elixir servers, generate keys, and stream messages.
+Open http://localhost:8080 in your browser — the Go server serves the test console directly. You can generate keys, connect WebSocket/SSE clients, and stream messages in real time.
 
 ---
 
