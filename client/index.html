@@ -103,6 +103,8 @@
       <input id="pub-channel" value="my-channel">
       <label>Event</label>
       <input id="pub-event" value="message">
+      <label>Publisher</label>
+      <input id="pub-publisher" placeholder="Your name (optional)">
       <label>Data (JSON)</label>
       <textarea id="pub-data">{"text": "Hello from HTTP!", "user": "admin"}</textarea>
       <button class="btn-primary btn-full" onclick="publishHTTP()">Publish via POST</button>
@@ -193,7 +195,12 @@ function wsConnect() {
   ws.onclose = (e) => { addLog('ws', `Disconnected (${e.code})`, 'sys'); setWSState(false); };
   ws.onerror = () => { addLog('ws', 'Connection error', 'err'); };
   ws.onmessage = (e) => {
-    e.data.split('\n').forEach(line => { if (line.trim()) addLog('ws', '← ' + line, 'recv'); });
+    e.data.split('\n').forEach(line => {
+      if (line.trim()) {
+        addLog('ws', '← ' + line, 'recv');
+        showNotification(line);
+      }
+    });
   };
 }
 function wsDisconnect() { if (ws) ws.close(); }
@@ -236,6 +243,7 @@ function sseConnect() {
   });
   sse.addEventListener('message', (e) => {
     addLog('sse', '← ' + e.data, 'sse');
+    showNotification(e.data);
   });
   sse.onerror = () => {
     addLog('sse', 'Connection error/closed', 'err');
@@ -256,6 +264,7 @@ async function publishHTTP() {
   const key = document.getElementById('api-key').value;
   const channel = document.getElementById('pub-channel').value;
   const event = document.getElementById('pub-event').value;
+  const publisher = document.getElementById('pub-publisher').value;
   let data;
   try { data = JSON.parse(document.getElementById('pub-data').value); } catch { data = document.getElementById('pub-data').value; }
 
@@ -264,7 +273,7 @@ async function publishHTTP() {
     const res = await fetch(`${BASE}/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
-      body: JSON.stringify({ channel, event, data })
+      body: JSON.stringify({ channel, event, data, publisher: publisher || undefined })
     });
     const result = await res.json();
     addLog('http', '→ Published: ' + JSON.stringify(result), 'sent');
@@ -293,6 +302,30 @@ function switchTab(tab) {
 }
 
 function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+// ─── Browser Notifications ────────────────────────────────
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+function showNotification(rawData) {
+  if (!document.hidden) return; // only show when tab is not focused
+  if (Notification.permission !== 'granted') return;
+  try {
+    const msg = JSON.parse(rawData);
+    const publisher = msg.user_id || 'SyncHub';
+    const type = msg.type || 'message';
+    let body = '';
+    if (msg.payload) {
+      body = typeof msg.payload === 'string' ? msg.payload : (msg.payload.text || msg.payload.message || JSON.stringify(msg.payload));
+    }
+    new Notification(`${publisher} — ${type}`, {
+      body: body,
+      icon: '⚡',
+      tag: msg.id || Date.now().toString()
+    });
+  } catch { /* not JSON, ignore */ }
+}
 </script>
 </body>
 </html>
